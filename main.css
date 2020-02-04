@@ -1,0 +1,25 @@
+body {
+    margin: 0px;
+    overflow: hidden;
+}
+
+div.white_square, div.black_square {
+    float: left;
+}
+
+div.black_square {
+    background-color: #ddd;
+}
+
+body {
+    /* supported by Chrome and Opera */
+    user-select: none;
+    /* Safari */
+    -webkit-user-select: none;
+    /* Konqueror HTML */
+    -khtml-user-select: none;
+    /* Firefox */
+    -moz-user-select: none;
+    /* Internet Explorer/Edge */
+    -ms-user-select: none;
+}
