@@ -2,8 +2,13 @@ var board = (function () { // Namespace board
 
     // Constants relating to the board
     const BOARD_SIZE = 64;  // The number of squares to a side of the board
-    const SQUARE_SIZE = window.innerHeight / 10.0; // The size of a board square in pixels
     const MAX_RANGE = 8; // The maximum range a piece can move
+
+    function square_size() {
+        if (squares[0][0] != null)
+            return parseFloat(squares[0][0].style.width.replace("px",""));
+        return window.innerHeight / 10.0;
+    }
 
     // Variables pertaining to the board
     var mouse_down = false;
@@ -13,13 +18,22 @@ var board = (function () { // Namespace board
     var piece_names       = ["pawn", "bishop", "knight", "rook", "queen", "king"];
     var highlighted_moves = [];
 
-    // Initialize the pieces array
-    var pieces = [];
+    // Contains the row elements, which themselves contain the squares
+    var rows = [];
+
+    // Initialize the pieces/squares arrays
+    var pieces  = [];
+    var squares = [];
     for (x = 0; x < BOARD_SIZE; ++x) {
-        var row = []
+        var prow = []
+        var srow = []
         for (y = 0; y < BOARD_SIZE; ++y)
-            row.push(null);
-        pieces.push(row);
+        {
+            prow.push(null);
+            srow.push(null);
+        }
+        pieces.push(prow);
+        squares.push(srow);
     }
 
     function rand_int(max) {
@@ -90,14 +104,14 @@ var board = (function () { // Namespace board
         var h = document.createElement("div");
         h.className = "move_highlight";
 
-        h.style.borderRadius = (SQUARE_SIZE/2) + "px";
+        h.style.borderRadius = (square_size()/2) + "px";
         h.style.backgroundColor = move_color;
-        h.style.width = SQUARE_SIZE + "px";
+        h.style.width = square_size() + "px";
         h.style.height = h.style.width;
         h.style.backgroundSize = "cover";
         h.style.position = "absolute";
-        h.style.left = xt * SQUARE_SIZE;
-        h.style.top = yt * SQUARE_SIZE;
+        h.style.left = xt * square_size();
+        h.style.top = yt * square_size();
 
         h.onclick = () => { move_piece(x,y,xt,yt); }
 
@@ -134,7 +148,7 @@ var board = (function () { // Namespace board
             case "pawn":
                 // Moves to adjecent squares, takes diagonally
                 if (get_color(x+1, y) == null) highlight_move(x,y,x+1,y);
-                if (get_color(x-1, y) == null) highlight_move(x,y,x-1,y);
+                if (get_color(x-1, y) == null)   highlight_move(x,y,x-1,y);
                 if (get_color(x, y+1) == null) highlight_move(x,y,x,y+1);
                 if (get_color(x, y-1) == null) highlight_move(x,y,x,y-1);
                 if (get_color(x+1,y+1) == enemy_color) highlight_move(x,y,x+1,y+1);
@@ -213,12 +227,12 @@ var board = (function () { // Namespace board
         p.id = owner + "_" + color + "_" + name;
 
         p.style.backgroundImage = "url(img/" + color + "_" + name + ".svg)";
-        p.style.width = SQUARE_SIZE + "px";
+        p.style.width = square_size() + "px";
         p.style.height = p.style.width;
         p.style.backgroundSize = "cover";
         p.style.position = "absolute";
-        p.style.left = x * SQUARE_SIZE;
-        p.style.top = y * SQUARE_SIZE;
+        p.style.left = x * square_size();
+        p.style.top = y * square_size();
 
         clear_square(x, y);
         p.onclick = () => { click_piece(x, y); };
@@ -238,6 +252,50 @@ var board = (function () { // Namespace board
         create_piece(rand_int(BOARD_SIZE), rand_int(BOARD_SIZE), color, name, owner);
     }
 
+    function zoom(factor) {
+        // Modify the display size of the board by the given factor
+        // maintaining the view centre
+
+        // Record the old window dimensions in units of the old square size
+        old_window_width  = window.innerWidth/square_size();
+        old_window_height = window.innerHeight/square_size();
+        old_window_x = window.pageXOffset/square_size() + old_window_width/2;
+        old_window_y = window.pageYOffset/square_size() + old_window_height/2;
+
+        // Resize objects to the new square size
+        new_square_size = square_size()*factor;
+        clear_highlights();
+        for (var x=0; x<BOARD_SIZE; ++x)
+            for (var y=0; y<BOARD_SIZE; ++y)
+            {
+                squares[x][y].style.width  = new_square_size + "px";
+                squares[x][y].style.height = new_square_size + "px";
+                squares[x][y].style.left   = x*new_square_size;
+                squares[x][y].style.top    = y*new_square_size;
+
+                if (pieces[x][y] != null)
+                {
+                    pieces[x][y].style.width  = new_square_size + "px";
+                    pieces[x][y].style.height = new_square_size + "px";
+                    pieces[x][y].style.left   = x*new_square_size;
+                    pieces[x][y].style.top    = y*new_square_size;
+                }
+            }
+
+        for (var y=0; y<BOARD_SIZE; ++y)
+        {
+            rows[y].style.width  = (BOARD_SIZE*new_square_size) + "px";
+            rows[y].style.height = new_square_size + "px";
+        }
+
+        // Scroll the page to centre on the same point of 
+        // the board as it was before 
+        new_window_width  = window.innerWidth/square_size();
+        new_window_height = window.innerHeight/square_size();
+        window.scroll((old_window_x-new_window_width/2)*new_square_size,
+                      (old_window_y-new_window_height/2)*new_square_size);
+    }
+
     function create_board() {
 
         for (i = 0; i < 1000; ++i)
@@ -252,8 +310,8 @@ var board = (function () { // Namespace board
             row.id = "row_" + x;
 
             // The board is made up of squares that are
-            row.style.width = BOARD_SIZE * SQUARE_SIZE + "px";
-            row.style.height = SQUARE_SIZE + "px";
+            row.style.width = BOARD_SIZE * square_size() + "px";
+            row.style.height = square_size() + "px";
 
             for (var y = 0; y < BOARD_SIZE; ++y) {
 
@@ -265,14 +323,29 @@ var board = (function () { // Namespace board
                 sq.id = "square_" + x + "_" + y;
                 sq.onclick = () => { clear_highlights(); }
 
-                sq.style.width = SQUARE_SIZE + "px";
+                sq.style.width  = square_size() + "px";
                 sq.style.height = sq.style.width;
+                squares[x][y]   = sq;
 
                 row.appendChild(sq);
             }
 
+            rows.push(row);
             document.body.appendChild(row);
         }
+
+        document.body.onkeydown = (event) => {
+            // Handle keyboard input
+            switch(event.key)
+            {
+                case "-":
+                    zoom(0.5);
+                    break;
+                case "=":
+                    zoom(2.0);
+                    break;
+            }
+        };  
 
         // Add the mouse tracking listeners
         document.body.addEventListener("mousedown", () => { mouse_down = true; });
